@@ -9,11 +9,8 @@ export default $config({
     };
   },
   async run() {
-    const api = new sst.aws.ApiGatewayV2("NotesAppApi");
-    api.route("GET /", {
-      handler: "lib/lambda.handler",
-    });
-
+    
+    
     const table = new sst.aws.Dynamo("NotesSST3", {
       fields: {
         userId: "string",
@@ -24,6 +21,12 @@ export default $config({
 
     const bucket = new sst.aws.Bucket("NotesBucketSST3", {
       public: true,
+    });
+
+    const api = new sst.aws.ApiGatewayV2("NotesAppApi");
+    api.route("POST /notes", {
+      link: [table],
+      handler: "lib/notesApi/create.main",
     });
 
     new sst.aws.Nextjs("NotesApp", {
