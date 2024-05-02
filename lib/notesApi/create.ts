@@ -1,55 +1,41 @@
 import { Resource } from "sst";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import * as uuid from "uuid";
+import handler from "../handler";
+import { dynamoDb } from "../dynamodb";
 
-const dynamoDb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-
-
-export const main = async (event: any) => {
-    let data, params;
-
-    if (event.body) {
-        data = JSON.parse(event.body);
-        params = {
-            TableName: Resource.NotesSST3.name,
-            Item: {
-                userId: "123",
-                noteId: uuid.v1(),
-                content: data.content,
-                attachment: data.attachment,
-                createdAt: Date.now(),
-            },
-        };
-    } else {
+export const main = handler(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    if (!event.body) {
         return {
             statusCode: 404,
-            body: JSON.stringify({ error: true }),
+            body: JSON.stringify({ error: "No data provided" }),
         };
     }
 
+    const data = JSON.parse(event.body);
+    const params = {
+        TableName: Resource.NotesSST3.name,
+        Item: {
+            userId: "1234", // Modify as necessary
+            noteId: uuid.v1(),
+            content: data.content,
+            attachment: data.attachment,
+            createdAt: Date.now(),
+        },
+    };
+
     try {
-        const command = new PutCommand({
-            TableName: params.TableName,
-            Item: params.Item,
-        });
-
-        await dynamoDb.send(command);
-
+        await dynamoDb.put(params);
         return {
             statusCode: 200,
             body: JSON.stringify(params.Item),
         };
     } catch (error) {
-        let message;
-        if (error instanceof Error) {
-            message = error.message;
-        } else {
-            message = String(error);
-        }
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: message }),
+            body: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+            }),
         };
     }
-}
+});
